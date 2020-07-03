@@ -3,6 +3,7 @@
 namespace BotMan\Drivers\Slack;
 
 use BotMan\BotMan\BotMan;
+use Exception;
 use Illuminate\Support\Collection;
 use BotMan\BotMan\Drivers\HttpDriver;
 use BotMan\Drivers\Slack\Extensions\User;
@@ -53,7 +54,7 @@ class SlackDriver extends HttpDriver implements VerifiesService
          * If the request has a POST parameter called 'payload'
          * we're dealing with an interactive button response.
          */
-        if (! is_null($request->get('payload'))) {
+        if (! is_null($request->get('payload')) && !is_array($request->get('payload'))) {
             $payloadData = json_decode($request->get('payload'), true);
 
             $this->payload = Collection::make($payloadData);
@@ -112,8 +113,8 @@ class SlackDriver extends HttpDriver implements VerifiesService
     }
 
     /**
-     * @param  \BotMan\BotMan\Messages\Incoming\IncomingMessage $message
-     * @return \BotMan\BotMan\Messages\Incoming\Answer
+     * @param IncomingMessage $message
+     * @return Answer
      */
     public function getConversationAnswer(IncomingMessage $message)
     {
@@ -203,7 +204,7 @@ class SlackDriver extends HttpDriver implements VerifiesService
     /**
      * Convert a Question object into a valid Slack response.
      *
-     * @param \BotMan\BotMan\Messages\Outgoing\Question $question
+     * @param Question $question
      * @return array
      */
     private function convertQuestion(Question $question)
@@ -225,11 +226,16 @@ class SlackDriver extends HttpDriver implements VerifiesService
         })->toArray();
         $questionData['actions'] = $buttons;
 
+        $slackmenuMessage = $question->toArray();
+        if($slackmenuMessage['actions'][0]['type'] == 'select'){
+            $questionData['actions'] = $slackmenuMessage['actions'];
+        }
+
         return $questionData;
     }
 
     /**
-     * @param string|\BotMan\BotMan\Messages\Outgoing\Question $message
+     * @param string|Question $message
      * @param IncomingMessage $matchingMessage
      * @param array $additionalParameters
      * @return array
@@ -259,13 +265,15 @@ class SlackDriver extends HttpDriver implements VerifiesService
             return $this->http->post('https://slack.com/api/dialog.open', [], $payload);
         }
 
-        return JsonResponse::create($payload)->send();
+        return (new JsonResponse($payload))->send();
     }
 
     /**
      * @param $message
      * @param array $additionalParameters
-     * @param \BotMan\BotMan\Messages\Incoming\IncomingMessage $matchingMessage
+     * @param IncomingMessage $matchingMessage
+     * @param BotMan $bot
+     *
      * @return array
      */
     public function replyInThread($message, $additionalParameters, $matchingMessage, BotMan $bot)
@@ -280,9 +288,10 @@ class SlackDriver extends HttpDriver implements VerifiesService
     }
 
     /**
-     * @param $message
+     * @param Dialog $dialog
      * @param array $additionalParameters
-     * @param \BotMan\BotMan\Messages\Incoming\IncomingMessage $matchingMessage
+     * @param IncomingMessage $matchingMessage
+     * @param BotMan $bot
      * @return array
      */
     public function replyDialog(Dialog $dialog, $additionalParameters, $matchingMessage, BotMan $bot)
@@ -300,7 +309,7 @@ class SlackDriver extends HttpDriver implements VerifiesService
 
     /**
      * @param string|Question $message
-     * @param \BotMan\BotMan\Messages\Incoming\IncomingMessage $matchingMessage
+     * @param IncomingMessage $matchingMessage
      * @param array $parameters
      * @return array
      */
@@ -334,8 +343,8 @@ class SlackDriver extends HttpDriver implements VerifiesService
     }
 
     /**
-     * @param string|\BotMan\BotMan\Messages\Outgoing\Question|IncomingMessage $message
-     * @param \BotMan\BotMan\Messages\Incoming\IncomingMessage $matchingMessage
+     * @param string|Question|IncomingMessage $message
+     * @param IncomingMessage $matchingMessage
      * @param array $additionalParameters
      * @return array
      */
@@ -363,7 +372,12 @@ class SlackDriver extends HttpDriver implements VerifiesService
             $attachment = $message->getAttachment();
             if (! is_null($attachment)) {
                 if ($attachment instanceof Image) {
-                    $parameters['attachments'] = json_encode(['image_url' => $attachment->getUrl()]);
+                    $parameters['attachments'] = json_encode([
+                        [
+                            'title' => $attachment->getTitle() ? $attachment->getTitle() : $attachment->getUrl(),
+                            'image_url' => $attachment->getUrl(),
+                        ],
+                    ]);
                 }
             }
         } else {
@@ -385,7 +399,7 @@ class SlackDriver extends HttpDriver implements VerifiesService
 
     /**
      * Retrieve User information.
-     * @param \BotMan\BotMan\Messages\Incoming\IncomingMessage $matchingMessage
+     * @param IncomingMessage $matchingMessage
      * @return User
      */
     public function getUser(IncomingMessage $matchingMessage)
@@ -397,7 +411,7 @@ class SlackDriver extends HttpDriver implements VerifiesService
             $content = json_decode($response->getContent(), true);
 
             return new User(null, $content['user']);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return new User(null, ['id' => $matchingMessage->getSender()]);
         }
     }
@@ -427,8 +441,10 @@ class SlackDriver extends HttpDriver implements VerifiesService
     {
         $payload = Collection::make(json_decode($request->getContent(), true));
         if ($payload->get('type') === 'url_verification') {
-            return Response::create($payload->get('challenge'))->send();
+            return (new Response($payload->get('challenge')))->send();
         }
+
+        return null;
     }
 
     /**
@@ -476,7 +492,7 @@ class SlackDriver extends HttpDriver implements VerifiesService
                 if (count($errors)) {
                     $this->bot->touchCurrentConversation();
 
-                    return Response::create(json_encode(['errors' => $errors]), 200, ['ContentType' => 'application/json'])->send();
+                    return (new Response(json_encode(['errors' => $errors]), 200, ['ContentType' => 'application/json']))->send();
                 } else {
                     if ($next instanceof \Closure) {
                         $next = $next->bindTo($this, $this);

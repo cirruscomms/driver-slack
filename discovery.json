@@ -4,8 +4,5 @@
     ],
     "botman/driver": [
         "BotMan\\Drivers\\Slack\\SlackDriver"
-    ],
-    "botman/commands": [
-        "BotMan\\Drivers\\Slack\\Commands\\SlackRTMListenCommand"
     ]
 }
