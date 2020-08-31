@@ -5,7 +5,7 @@ return array (
     0 => 
     array (
       'value' => 'stubs/slack.php',
-      'package' => 'botman/driver-slack',
+      'package' => 'swoop/driver-slack',
       'packageDir' => './',
       'priority' => 0.0,
       'metadata' => 
@@ -18,7 +18,7 @@ return array (
     0 => 
     array (
       'value' => 'BotMan\\Drivers\\Slack\\SlackDriver',
-      'package' => 'botman/driver-slack',
+      'package' => 'swoop/driver-slack',
       'packageDir' => './',
       'priority' => 0.0,
       'metadata' => 

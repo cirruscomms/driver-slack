@@ -1,5 +1,5 @@
 {
-    "name": "botman/driver-slack",
+    "name": "swoop/driver-slack",
     "license": "MIT",
     "description": "Slack driver for BotMan without RTM driver",
     "keywords": [
@@ -7,11 +7,11 @@
         "BotMan",
         "Slack"
     ],
-    "homepage": "http://github.com/swoop/driver-slack",
+    "homepage": "http://github.com/cirruscomms/driver-slack",
     "authors": [
         {
-            "name": "Marcel Pociot",
-            "email": "m.pociot@gmail.com"
+            "name": "Steven White",
+            "email": "steven.white@swoop.com.au"
         }
     ],
     "require": {
